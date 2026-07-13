@@ -1,0 +1,142 @@
+# 374. Guess Number Higher or Lower
+
+## Problem
+We are playing the Guess Game. The game is as follows:
+
+I pick a number from 1 to `n`. You have to guess which number I picked (the number I picked stays the same throughout the game).
+
+Every time you guess wrong, I will tell you whether the number I picked is higher or lower than your guess.
+
+You call a pre-defined API `int guess(int num)`, which returns three possible results:
+- `-1`: Your guess is higher than the number I picked (i.e. `num > pick`).
+- `1`: Your guess is lower than the number I picked (i.e. `num < pick`).
+- `0`: your guess is equal to the number I picked (i.e. `num == pick`).
+
+Return the number that I picked.
+
+**Constraints:**
+- `1 <= n <= 2^31 - 1`
+- `1 <= pick <= n`
+
+## Examples
+```
+Input: n = 10, pick = 6
+Output: 6
+
+Input: n = 1, pick = 1
+Output: 1
+
+Input: n = 2, pick = 1
+Output: 1
+```
+
+## 1. Problem Breakdown
+Guess a hidden `pick` in `[1, n]` using only the three-way comparator `guess(num)`. There's no array to scan — the "sorted structure" is implicit in the fact that numbers 1..n are monotonically ordered and `guess()` tells you which direction to move. `n` can be as large as `int.MaxValue` (`2^31 - 1`), which makes midpoint-overflow the main implementation trap.
+
+## 2. Test Cases
+**Given:**
+- `n=10, pick=6` → narrow down via guesses until `guess(6) == 0` → `6`
+- `n=1, pick=1` → only one possible value, immediate match → `1`
+- `n=2, pick=1` → narrows from {1,2} to `1`
+
+**Edge cases:**
+- `n = 1` → no searching needed, single candidate.
+- `pick = n` (upper boundary) and `pick = 1` (lower boundary) → search must converge correctly without off-by-one errors.
+- `n = 2^31 - 1` (`int.MaxValue`) → computing `mid = (lo + hi) / 2` naively can overflow `int` since `lo + hi` can exceed `int.MaxValue`; must use `mid = lo + (hi - lo) / 2` instead.
+- `pick` near the middle → fewest iterations, sanity check for the typical case.
+
+## 3. Pattern Recognition
+**Binary Search over an interactive comparator.** The search space `[1, n]` is implicitly sorted, and `guess()` plays the role of `arr[mid]` vs `target` in classic binary search — it just returns the comparison result directly instead of exposing the underlying value. "Find a target in a monotonic range using a comparison oracle" is the strongest signal for binary search; the "Interactive" tag only changes how the comparator is invoked, not the algorithm shape.
+
+## 4. Brute Force
+```csharp
+public class Solution : GuessGame {
+    public int GuessNumber(int n) {
+        for (int num = 1; num <= n; num++) {
+            if (guess(num) == 0) {
+                return num;
+            }
+        }
+        return -1; // unreachable given problem guarantees
+    }
+}
+```
+**Time:** O(n) — worst case (`pick == n`) calls `guess()` on every value from 1 to n.
+**Space:** O(1) — just a loop counter.
+
+## 5. Optimal Solution
+```csharp
+public class Solution : GuessGame {
+    public int GuessNumber(int n) {
+        int lo = 1, hi = n;
+        while (lo <= hi) {
+            int mid = lo + (hi - lo) / 2; // overflow-safe midpoint
+            int result = guess(mid);
+            if (result == 0) {
+                return mid;
+            } else if (result < 0) {
+                // mid is higher than pick -> search lower half
+                hi = mid - 1;
+            } else {
+                // mid is lower than pick -> search upper half
+                lo = mid + 1;
+            }
+        }
+        return -1; // unreachable given problem guarantees
+    }
+}
+```
+**Time:** O(log n) — each call to `guess()` halves the remaining range.
+**Space:** O(1) — only two boundary variables (`lo`, `hi`).
+
+## 6. Complexity Comparison
+| Approach | Time | Space |
+|---|---|---|
+| Brute Force | O(n) | O(1) |
+| Optimal | O(log n) | O(1) |
+
+Both are constant-space, but for `n = 2^31 - 1` the optimal binary search takes roughly 31 calls to `guess()` versus up to ~2.1 billion for brute force — binary search is the only viable approach at this problem's scale.
+
+## 7. Execution Trace (Optimal Solution)
+
+**Trace A — Example 1: `n = 10`, `pick = 6` (expected `6`)**
+```
+lo=1, hi=10
+
+Iteration 1:
+  mid = 1 + (10-1)/2 = 1 + 4 = 5
+  guess(5): 5 < pick(6) -> your guess is lower -> result = 1
+  result > 0 -> search upper half: lo = mid + 1 = 6
+  (lo=6, hi=10)
+
+Iteration 2:
+  mid = 6 + (10-6)/2 = 6 + 2 = 8
+  guess(8): 8 > pick(6) -> your guess is higher -> result = -1
+  result < 0 -> search lower half: hi = mid - 1 = 7
+  (lo=6, hi=7)
+
+Iteration 3:
+  mid = 6 + (7-6)/2 = 6 + 0 = 6
+  guess(6): 6 == pick(6) -> result = 0
+  return mid = 6
+```
+Result: `6` in 3 calls to `guess()` — matches expected output, and `log2(10) ≈ 3.3`, consistent with O(log n).
+
+**Trace B — why `mid = lo + (hi - lo) / 2` matters: `n = 2^31 - 1 = 2147483647`, `pick = n` (worst-case upper boundary)**
+```
+lo = 1, hi = 2147483647
+
+Naive (unsafe) formula:
+  mid = (lo + hi) / 2
+  lo + hi = 1 + 2147483647 = 2147483648
+  int.MaxValue = 2147483647  -> 2147483648 overflows a 32-bit int,
+  wrapping to a negative number in unchecked arithmetic -> mid becomes
+  garbage (e.g. a negative index), breaking the search entirely.
+
+Safe formula actually used:
+  mid = lo + (hi - lo) / 2
+  hi - lo = 2147483647 - 1 = 2147483646   (fits safely in int, no overflow)
+  (hi - lo) / 2 = 1073741823
+  mid = 1 + 1073741823 = 1073741824       (well within int range, correct)
+```
+This is why the optimal solution deliberately writes `mid = lo + (hi - lo) / 2` instead of the more "obvious" `(lo + hi) / 2` — with `n` allowed up to `int.MaxValue`, the naive version can silently overflow and corrupt the search, while the safe version never lets the intermediate sum exceed `hi`.
