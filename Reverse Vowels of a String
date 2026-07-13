@@ -1,0 +1,65 @@
+// 345. Reverse Vowels of a String (Easy)
+// https://leetcode.com/problems/reverse-vowels-of-a-string/
+//
+// Given a string s, reverse only all the vowels in the string and return it.
+// Vowels are 'a','e','i','o','u' in both lower and upper cases.
+//
+// Pattern: Two Pointers (converging from both ends).
+// Time:  O(n) - each pointer moves monotonically toward the center.
+// Space: O(1) auxiliary (char[] buffer is required output; strings are immutable in C#).
+
+// ---------------------------------------------------------------------------
+// BRUTE FORCE: collect all vowels in order, then rebuild the string consuming
+// the collected vowels from the end (i.e. in reverse).
+// Time: O(n) two passes.  Space: O(n) for the vowel list + output buffer.
+// ---------------------------------------------------------------------------
+public class SolutionBruteForce {
+    private static bool IsVowel(char c) =>
+        "aeiouAEIOU".IndexOf(c) >= 0;
+
+    public string ReverseVowels(string s) {
+        var vowels = new System.Collections.Generic.List<char>();
+        foreach (char c in s) {
+            if (IsVowel(c)) vowels.Add(c);
+        }
+
+        var sb = new System.Text.StringBuilder(s.Length);
+        int vi = vowels.Count - 1;
+        foreach (char c in s) {
+            sb.Append(IsVowel(c) ? vowels[vi--] : c);
+        }
+        return sb.ToString();
+    }
+}
+
+// ---------------------------------------------------------------------------
+// OPTIMAL: two converging pointers, swap outermost vowels in place.
+// ---------------------------------------------------------------------------
+public class Solution {
+    private static bool IsVowel(char c) {
+        switch (c) {
+            case 'a': case 'e': case 'i': case 'o': case 'u':
+            case 'A': case 'E': case 'I': case 'O': case 'U':
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public string ReverseVowels(string s) {
+        char[] chars = s.ToCharArray();
+        int left = 0, right = chars.Length - 1;
+
+        while (left < right) {
+            while (left < right && !IsVowel(chars[left]))  left++;
+            while (left < right && !IsVowel(chars[right])) right--;
+
+            if (left < right) {
+                (chars[left], chars[right]) = (chars[right], chars[left]);
+                left++;
+                right--;
+            }
+        }
+        return new string(chars);
+    }
+}
