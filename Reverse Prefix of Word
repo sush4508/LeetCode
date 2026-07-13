@@ -1,0 +1,112 @@
+# 2. Reverse Prefix of Word
+
+## Problem
+Given a 0-indexed string `word` and a character `ch`, reverse the segment of `word` that starts at index 0 and ends at the index of the first occurrence of `ch` (inclusive). If `ch` does not exist in `word`, do nothing.
+
+Return the resulting string.
+
+**Constraints:**
+- `1 <= word.length <= 250`
+- `word` consists of lowercase English letters.
+- `ch` is a lowercase English letter.
+
+## Examples
+```
+Input: word = "abcdefd", ch = "d"
+Output: "dcbaefd"
+Explanation: The first occurrence of "d" is at index 3.
+Reverse the part of word from 0 to 3 (inclusive), the resulting string is "dcbaefd".
+
+Input: word = "xyxzxe", ch = "z"
+Output: "zxyxxe"
+Explanation: The first and only occurrence of "z" is at index 3.
+Reverse the part of word from 0 to 3 (inclusive), the resulting string is "zxyxxe".
+
+Input: word = "abcd", ch = "z"
+Output: "abcd"
+Explanation: "z" does not exist in word.
+You should not do any reverse operation, the resulting string is "abcd".
+```
+
+## 1. Problem Breakdown
+Find the first index where `ch` appears in `word`. Reverse the substring from index 0 up to and including that index, leaving the rest of the string untouched. If `ch` never appears, return `word` unchanged. Input is a lowercase-letter string of length 1 to 250; output is a string of the same length.
+
+## 2. Test Cases
+**Given:**
+- `"abcdefd", ch='d'` → first `'d'` at index 3 → reverse `[0,3]` → `"dcbaefd"`
+- `"xyxzxe", ch='z'` → first `'z'` at index 3 → reverse `[0,3]` → `"zxyxxe"`
+- `"abcd", ch='z'` → `ch` not present → `"abcd"` unchanged
+
+**Edge cases:**
+- Single character, matches: `"a", ch='a'` → `"a"` (reversing one character is a no-op)
+- Single character, no match: `"a", ch='b'` → `"a"`
+- `ch` at index 0: `"abc", ch='a'` → `"abc"` (segment of length 1, no visible change)
+- `ch` at the last index: `"abc", ch='c'` → `"cba"` (whole string reversed)
+- All same character: `"aaaa", ch='a'` → matches at index 0 → `"aaaa"` (reversing `"a"` is a no-op)
+- Max length input (250 chars) — confirms solution scales trivially, no performance concern at this size
+
+## 3. Pattern Recognition
+**Two Pointers** on the prefix segment. Once the first occurrence of `ch` is located (a simple linear scan), reversing a substring in place is the classic two-pointer swap: one pointer at the start, one at the found index, swapping inward until they meet. The "find boundary, then reverse in place" shape is a strong signal for two pointers rather than any search/DP structure — there's no optimal substructure or branching decision here, just a scan plus a reversal.
+
+## 4. Brute Force Solution
+Find the index of `ch` using `IndexOf`. If not found, return `word` as-is. Otherwise, take the substring `[0, index]`, convert it to a character array, use `Array.Reverse`, reassemble it as a string, and concatenate with the untouched remainder.
+
+```csharp
+public class Solution {
+    public string ReversePrefix(string word, char ch) {
+        int index = word.IndexOf(ch);
+        if (index == -1) {
+            return word;
+        }
+
+        char[] prefix = word.Substring(0, index + 1).ToCharArray();
+        Array.Reverse(prefix);
+        return new string(prefix) + word.Substring(index + 1);
+    }
+}
+```
+**Time:** O(n) — `IndexOf` scans up to n characters, and building/reversing/concatenating substrings is also O(n).
+**Space:** O(n) — several intermediate strings and a char array are allocated.
+
+## 5. Optimal Solution
+Avoid intermediate substring allocations: scan for the first occurrence of `ch` manually, then reverse the prefix in place on a single character array using two pointers, and build the final string once.
+
+```csharp
+public class Solution {
+    public string ReversePrefix(string word, char ch) {
+        int index = -1;
+        for (int i = 0; i < word.Length; i++) {
+            if (word[i] == ch) {
+                index = i;
+                break;
+            }
+        }
+
+        if (index == -1) {
+            return word;
+        }
+
+        char[] chars = word.ToCharArray();
+        int left = 0, right = index;
+        while (left < right) {
+            char temp = chars[left];
+            chars[left] = chars[right];
+            chars[right] = temp;
+            left++;
+            right--;
+        }
+
+        return new string(chars);
+    }
+}
+```
+**Time:** O(n) — one pass to find `ch`, one pass to reverse the prefix (each at most n/2 swaps).
+**Space:** O(n) — a single char array for the whole word (unavoidable since C# strings are immutable).
+
+## 6. Complexity Comparison
+| Approach | Time | Space |
+|---|---|---|
+| Brute Force | O(n) | O(n) |
+| Optimal | O(n) | O(n) |
+
+Both are linear time and space since string immutability forces at least one full-length buffer either way; the optimal version simply avoids the extra substring/concatenation allocations the brute force creates, trading a few constant-factor allocations for a cleaner, single-buffer in-place reversal.
