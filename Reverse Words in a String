@@ -1,0 +1,190 @@
+# 151. Reverse Words in a String
+
+## Problem
+Given an input string `s`, reverse the order of the words.
+
+A word is defined as a sequence of non-space characters. The words in `s` will be separated by at least one space.
+
+Return a string of the words in reverse order concatenated by a single space.
+
+Note that `s` may contain leading or trailing spaces or multiple spaces between two words. The returned string should only have a single space separating the words. Do not include any extra spaces.
+
+**Constraints:**
+- `1 <= s.length <= 10^4`
+- `s` contains English letters (upper-case and lower-case), digits, and spaces `' '`.
+- There is at least one word in `s`.
+
+**Follow-up:** If the string data type is mutable in your language, can you solve it in-place with O(1) extra space?
+
+## Examples
+```
+Input: s = "the sky is blue"
+Output: "blue is sky the"
+
+Input: s = "  hello world  "
+Output: "world hello"
+Explanation: Your reversed string should not contain leading or trailing spaces.
+
+Input: s = "a good   example"
+Output: "example good a"
+Explanation: You need to reduce multiple spaces between two words to a single space in the reversed string.
+```
+
+## 1. Problem Breakdown
+Reverse the order of the words in `s`, treating any run of non-space characters as one word, and normalize spacing so the result has exactly one space between words and none at the edges. Since C# strings are immutable, "in-place, O(1) extra space" really means: copy into one mutable `char[]` buffer, then do everything else with only index arithmetic — no `Split`, no `List<string>`, no extra arrays.
+
+## 2. Test Cases
+**Given:**
+- `"the sky is blue"` → `["the","sky","is","blue"]` reversed → `"blue is sky the"`
+- `"  hello world  "` → leading/trailing spaces dropped → `"world hello"`
+- `"a good   example"` → internal multi-space run collapses to one → `"example good a"`
+
+**Edge cases:**
+- Single word, no spaces: `"hello"` → `"hello"`.
+- All spaces around one word: `"   hi   "` → `"hi"`.
+- Multiple consecutive spaces between every pair of words: `"a    b    c"` → `"c b a"`.
+- Two words only: `"ab cd"` → `"cd ab"`.
+- Max length input (10^4 chars) → must stay O(n), no quadratic string concatenation.
+- Words mixing letters and digits, e.g. `"room1 room2"` → treated as opaque tokens, `"room2 room1"`.
+
+## 3. Pattern Recognition
+**Two Pointers / in-place string manipulation** — the classic "reverse-then-reverse-parts" trick (same family as "rotate array by k"). Two distinct two-pointer passes are used: a read/write pointer pair to compact spaces in one left-to-right scan, and a left/right pointer pair to reverse ranges (the whole buffer, then each word) without allocating new arrays. The naive `Split`/`Reverse`/`Join` approach skips this pattern entirely by delegating to library calls, which is why it's the brute force here.
+
+## 4. Brute Force
+```csharp
+public class Solution
+{
+    public string ReverseWords(string s)
+    {
+        string[] words = s.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        Array.Reverse(words);
+        return string.Join(" ", words);
+    }
+}
+```
+**Time:** O(n) — Split scans once, Reverse is O(w) for w words, Join scans once more.
+**Space:** O(n) — the intermediate `words` array plus the new joined string.
+
+## 5. Optimal Solution
+```csharp
+public class Solution
+{
+    public string ReverseWords(string s)
+    {
+        char[] chars = s.ToCharArray();
+        int n = chars.Length;
+
+        int newLength = CleanSpaces(chars, n);
+        Reverse(chars, 0, newLength - 1);
+        ReverseEachWord(chars, newLength);
+
+        return new string(chars, 0, newLength);
+    }
+
+    private int CleanSpaces(char[] chars, int n)
+    {
+        int i = 0, j = 0; // i = write pointer, j = read pointer
+        while (j < n)
+        {
+            while (j < n && chars[j] == ' ') j++;
+            while (j < n && chars[j] != ' ') chars[i++] = chars[j++];
+            while (j < n && chars[j] == ' ') j++;
+            if (j < n) chars[i++] = ' ';
+        }
+        return i;
+    }
+
+    private void Reverse(char[] chars, int left, int right)
+    {
+        while (left < right)
+        {
+            char temp = chars[left];
+            chars[left++] = chars[right];
+            chars[right--] = temp;
+        }
+    }
+
+    private void ReverseEachWord(char[] chars, int n)
+    {
+        int start = 0;
+        for (int end = 0; end <= n; end++)
+        {
+            if (end == n || chars[end] == ' ')
+            {
+                Reverse(chars, start, end - 1);
+                start = end + 1;
+            }
+        }
+    }
+}
+```
+**Time:** O(n) — space cleanup, whole-buffer reversal, and per-word reversal are each a linear pass.
+**Space:** O(n) for the mandatory `char[]` copy of the immutable input (unavoidable in C#), but O(1) *auxiliary* space beyond that single buffer.
+
+## 6. Complexity Comparison
+| Approach | Time | Space |
+|---|---|---|
+| Brute Force (Split/Reverse/Join) | O(n) | O(n) intermediate array + joined string |
+| Optimal (in-place buffer, 3-step reversal) | O(n) | O(n) unavoidable buffer, O(1) auxiliary |
+
+Both are linear time; the real difference is space *quality* — brute force allocates multiple intermediate structures, while the optimal solution reuses one buffer for every step, which is what the follow-up is actually testing.
+
+## 7. Execution Trace (Optimal Solution)
+
+**Trace A — Example 3: `s = "a good   example"` (expected `"example good a"`)**
+```
+chars = ['a',' ','g','o','o','d',' ',' ',' ','e','x','a','m','p','l','e']   (n = 16)
+
+Step 1 - CleanSpaces (i = write ptr, j = read ptr):
+  iter1: no leading space at j=0
+         copy "a"    -> chars[0]='a', i=1, j=1
+         skip space at j=1 -> j=2
+         write separator   -> chars[1]=' ', i=2
+  iter2: no leading space at j=2
+         copy "good" -> chars[2..5]='g','o','o','d', i=6, j=6
+         skip spaces j=6,7,8 -> j=9
+         write separator   -> chars[6]=' ', i=7
+  iter3: no leading space at j=9
+         copy "example" -> chars[7..13]='e','x','a','m','p','l','e', i=14, j=16
+         j=16=n, no trailing space to skip or write
+  newLength = 14
+  buffer[0..13] = "a good example"   (compacted, single spaces, no trailing junk)
+
+Step 2 - Reverse(chars, 0, 13)  [reverse the whole compacted buffer]
+  swap pairs (0,13)(1,12)(2,11)(3,10)(4,9)(5,8)(6,7)
+  buffer[0..13] = "elpmaxe doog a"   (word order now correct, spelling backwards)
+
+Step 3 - ReverseEachWord(chars, 14)
+  word "elpmaxe" at [0..6]  -> reverse -> "example"   buffer[0..6]  = e,x,a,m,p,l,e
+  word "doog"    at [8..11] -> reverse -> "good"      buffer[8..11] = g,o,o,d
+  word "a"       at [13..13]-> reverse -> "a"          (no change, single char)
+
+Final buffer[0..13] = "example good a"
+Return new string(chars, 0, 14) = "example good a"   <- matches expected output
+```
+
+**Trace B — Example 2: `s = "  hello world  "` (expected `"world hello"`)**
+```
+chars = [' ',' ','h','e','l','l','o',' ','w','o','r','l','d',' ',' ']   (n = 15)
+
+Step 1 - CleanSpaces:
+  skip leading spaces j=0,1 -> j=2
+  copy "hello" -> chars[0..4], i=5, j=7
+  skip space j=7 -> j=8
+  write separator -> chars[5]=' ', i=6
+  copy "world" -> chars[6..10], i=11, j=13
+  skip trailing spaces j=13,14 -> j=15=n, no separator written (no word follows)
+  newLength = 11
+  buffer[0..10] = "hello world"   (leading/trailing spaces gone)
+
+Step 2 - Reverse(chars, 0, 10)
+  buffer[0..10] = "dlrow olleh"
+
+Step 3 - ReverseEachWord(chars, 11)
+  word "dlrow" at [0..4]  -> reverse -> "world"
+  word "olleh" at [6..10] -> reverse -> "hello"
+
+Final buffer[0..10] = "world hello"
+Return new string(chars, 0, 11) = "world hello"   <- matches expected output
+```
+Trace B shows the space-cleanup step doing double duty: it strips leading/trailing spaces *and* collapses internal runs in the same single left-to-right pass, so the two later reversal steps never have to special-case boundary spacing at all.
