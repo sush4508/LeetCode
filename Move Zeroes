@@ -1,0 +1,50 @@
+// 283. Move Zeroes (Easy)
+// https://leetcode.com/problems/move-zeroes/
+//
+// Given an integer array nums, move all 0's to the end of it while maintaining
+// the relative order of the non-zero elements. Must be done in-place.
+//
+// Pattern: Two Pointers (stable partition) - same family as "remove element" (27, 26).
+// Time:  O(n) - single pass.
+// Space: O(1) - only two index variables, no auxiliary array.
+
+// ---------------------------------------------------------------------------
+// BRUTE FORCE: on each zero found, shift every element after it one step left,
+// then place a 0 at the end. Re-check the same index since a new value shifted in.
+// Time: O(n^2) worst case (each zero can trigger an O(n) shift).  Space: O(1).
+// ---------------------------------------------------------------------------
+public class SolutionBruteForce {
+    public void MoveZeroes(int[] nums) {
+        int n = nums.Length;
+        for (int i = 0; i < n; i++) {
+            if (nums[i] == 0) {
+                for (int j = i; j < n - 1; j++) {
+                    nums[j] = nums[j + 1];
+                }
+                nums[n - 1] = 0;
+                i--; // recheck index i - the element that just shifted into it
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// OPTIMAL: two-pointer swap. insertPos tracks the next slot for a non-zero
+// value; i scans forward. Swapping (not overwriting) pushes zeros right
+// automatically and skips writes when the element is already in place.
+// ---------------------------------------------------------------------------
+public class Solution {
+    public void MoveZeroes(int[] nums) {
+        int insertPos = 0;
+        for (int i = 0; i < nums.Length; i++) {
+            if (nums[i] != 0) {
+                if (i != insertPos) {
+                    int temp = nums[insertPos];
+                    nums[insertPos] = nums[i];
+                    nums[i] = temp;
+                }
+                insertPos++;
+            }
+        }
+    }
+}
